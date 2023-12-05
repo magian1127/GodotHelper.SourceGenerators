@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "DebugRoslyn": {
-      "commandName": "DebugRoslynComponent",
-      "targetProject": "..\\..\\JZGL\\JZGL\\JZGL.csproj"
-    }
-  }
-}
