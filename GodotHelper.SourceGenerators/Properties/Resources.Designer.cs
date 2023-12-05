@@ -98,9 +98,8 @@ namespace GodotHelper.SourceGenerators.Properties {
         ///
         ///        /// &lt;summary&gt;
         ///        /// 生成对应的属性,并使用信号或事件发出通知.&lt;br/&gt;
-        ///        /// 另外生成 partial 的 OnXXChanging 和 OnXXChanged 方法.
-        ///        /// &lt;/summary&gt;
-        ///        [字符串的其余部分被截断]&quot;; 的本地化字符串。
+        ///        /// 另外生成 partial 的 OnXXChanging 和 OnXXChanged 方法.&lt;br/&gt;
+        ///        /// 两个参数无法使用,因为源生成 [字符串的其余部分被截断]&quot;; 的本地化字符串。
         /// </summary>
         internal static string Notify {
             get {

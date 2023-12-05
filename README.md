@@ -143,8 +143,11 @@ Generated Code / 生成的代码:
 
 Use / 使用:
 ```cs
+public partial class MyNode : Node2D
+{
     public void XX()
     {
+        HpChanged += YY;
         Hp -= 1;
     }
 
@@ -157,4 +160,5 @@ Use / 使用:
     {
         // you code
     }
+}
 ```
