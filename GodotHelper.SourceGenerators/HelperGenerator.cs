@@ -1,4 +1,5 @@
-﻿using Microsoft.CodeAnalysis;
+﻿using GodotHelper.SourceGenerators.Properties;
+using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 using System.Linq;
@@ -11,7 +12,8 @@ namespace GodotHelper.SourceGenerators
     {
         public void Initialize(GeneratorInitializationContext context)
         {
-
+            // 在目标项目中添加特性代码. 如果直接使用CS文件, 那么就需要目标项目在编译时引用本项目. (也就是去掉 ReferenceOutputAssembly="false" )
+            context.RegisterForPostInitialization((i) => i.AddSource("HelperGenerator_AutoGetAttribute.g", Resources.AutoGet));
         }
 
         public void Execute(GeneratorExecutionContext context)
@@ -31,33 +33,51 @@ namespace GodotHelper.SourceGenerators
             {
                 foreach (var godotClass in godotClasses)
                 {
-                    VisitGodotScriptClass(context, godotClass);
+                    ProcessClass(context, godotClass);
                 }
             }
         }
 
-        private static void VisitGodotScriptClass(GeneratorExecutionContext context, INamedTypeSymbol symbol)
+        /// <summary>
+        /// 处理 Godot 脚本类
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="symbol">类符号</param>
+        private static void ProcessClass(GeneratorExecutionContext context, INamedTypeSymbol symbol)
         {
+            bool needGenerate = false;
             var members = symbol.GetMembers();
+
+            var autoGetProperties = members
+                .Where(s => !s.IsStatic && s.Kind == SymbolKind.Property)
+                .Cast<IPropertySymbol>()
+                .Where(s => s.GetAttributes()
+                    .Any(a => a.AttributeClass?.IsAutoGetAttribute() ?? false));
+            needGenerate = needGenerate || autoGetProperties.Any();
+
+            var autoGetFields = members
+                .Where(s => !s.IsStatic && s.Kind == SymbolKind.Field && !s.IsImplicitlyDeclared)
+                .Cast<IFieldSymbol>()
+                .Where(s => s.GetAttributes()
+                    .Any(a => a.AttributeClass?.IsAutoGetAttribute() ?? false));
+            needGenerate = needGenerate || autoGetFields.Any();
 
             var rpcMethods = members
                 .Where(s => s.Kind == SymbolKind.Method && !s.IsImplicitlyDeclared)
                 .Cast<IMethodSymbol>()
                 .Where(m => m.MethodKind == MethodKind.Ordinary)
                 .Where(m => m.GetAttributes().Any(a => a.AttributeClass?.IsGodotRpcAttribute() ?? false));
+            needGenerate = needGenerate || rpcMethods.Any();
 
-
-            var signalDelegate = members
+            var signalDelegates = members
                  .Where(s => s.Kind == SymbolKind.NamedType)
                  .Cast<INamedTypeSymbol>()
                  .Where(namedTypeSymbol => namedTypeSymbol.TypeKind == TypeKind.Delegate)
                  .Where(s => s.GetAttributes()
                      .Any(a => a.AttributeClass?.IsGodotSignalAttribute() ?? false));
+            needGenerate = needGenerate || signalDelegates.Any();
 
-            if (rpcMethods.Count() == 0 && signalDelegate.Count() == 0)
-            {
-                return;
-            }
+            if (!needGenerate) return;
 
             INamespaceSymbol namespaceSymbol = symbol.ContainingNamespace;
             string classNs = namespaceSymbol != null && !namespaceSymbol.IsGlobalNamespace ?
@@ -65,10 +85,10 @@ namespace GodotHelper.SourceGenerators
                 string.Empty;
             bool hasNamespace = classNs.Length != 0;
 
-            bool isInnerClass = symbol.ContainingType != null;
+            bool isInnerClass = symbol.ContainingType != null;//是否是类中的类(内部类)
 
             string uniqueHint = symbol.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()
-                                + "_GodotHelper.generated";
+                                + "_GodotHelper.g";
 
             var source = new StringBuilder();
 
@@ -107,13 +127,39 @@ namespace GodotHelper.SourceGenerators
             source.Append(symbol.NameWithTypeParameters());
             source.Append("\n{\n");
 
+            if (autoGetFields.Any() || autoGetProperties.Any())
+            {//生成 AutoGet 特性相关代码
+                source.Append($"    public void GetNodes()\n");
+                source.Append("    {\n");
+
+                foreach (var item in autoGetFields)
+                {
+                    var autoGet = item.GetAttributes().First(a => a.AttributeClass.IsAutoGetAttribute());
+                    string path = string.IsNullOrWhiteSpace(autoGet.ConstructorArguments[0].Value?.ToString()) ? item.Name : "";
+                    bool notNull = (bool)autoGet.ConstructorArguments[1].Value;
+                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{path}\");\n");
+                }
+
+                source.Append("\n");
+
+                foreach (var item in autoGetProperties)
+                {
+                    var autoGet = item.GetAttributes().First(a => a.AttributeClass.IsAutoGetAttribute());
+                    string path = string.IsNullOrWhiteSpace(autoGet.ConstructorArguments[0].Value?.ToString()) ? item.Name : "";
+                    bool notNull = (bool)autoGet.ConstructorArguments[1].Value;
+                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{path}\");\n");
+                }
+
+                source.Append("    }\n\n");
+            }
+
             foreach (var item in rpcMethods)
-            {
+            {//生成 RPC 特性相关代码
                 GenerateRpcMethod(source, item);
             }
 
-            foreach (var item in signalDelegate)
-            {
+            foreach (var item in signalDelegates)
+            {//生成 Signal 特性相关代码
                 GenerateEmitMethod(source, item);
             }
 
@@ -139,6 +185,11 @@ namespace GodotHelper.SourceGenerators
             context.AddSource(uniqueHint, SourceText.From(source.ToString(), Encoding.UTF8));
         }
 
+        /// <summary>
+        /// 生成使用 Rpc 的便捷方法
+        /// </summary>
+        /// <param name="source">需要添加到的源代码字符串</param>
+        /// <param name="symbol">方法符号</param>
         private static void GenerateRpcMethod(StringBuilder source, IMethodSymbol symbol)
         {
             string paramsString = string.Empty;
@@ -180,6 +231,11 @@ namespace GodotHelper.SourceGenerators
             source.Append("    }\n\n");
         }
 
+        /// <summary>
+        /// 生成发送信号的便捷方法
+        /// </summary>
+        /// <param name="source">需要添加到的源代码字符串</param>
+        /// <param name="symbol">类型符号</param>
         private static void GenerateEmitMethod(StringBuilder source, INamedTypeSymbol symbol)
         {
             string paramsString = string.Empty;
