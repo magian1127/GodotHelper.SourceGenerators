@@ -135,9 +135,10 @@ namespace GodotHelper.SourceGenerators
                 foreach (var item in autoGetFields)
                 {
                     var autoGet = item.GetAttributes().First(a => a.AttributeClass.IsAutoGetAttribute());
-                    string path = string.IsNullOrWhiteSpace(autoGet.ConstructorArguments[0].Value?.ToString()) ? item.Name : "";
+                    string path = autoGet.ConstructorArguments[0].Value?.ToString();
+                    string nodePath = string.IsNullOrWhiteSpace(path) ? $"%{item.Name}" : path;
                     bool notNull = (bool)autoGet.ConstructorArguments[1].Value;
-                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{path}\");\n");
+                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{nodePath}\");\n");
                 }
 
                 source.Append("\n");
@@ -145,9 +146,10 @@ namespace GodotHelper.SourceGenerators
                 foreach (var item in autoGetProperties)
                 {
                     var autoGet = item.GetAttributes().First(a => a.AttributeClass.IsAutoGetAttribute());
-                    string path = string.IsNullOrWhiteSpace(autoGet.ConstructorArguments[0].Value?.ToString()) ? item.Name : "";
+                    string path = autoGet.ConstructorArguments[0].Value?.ToString();
+                    string nodePath = string.IsNullOrWhiteSpace(path) ? $"%{item.Name}" : path;
                     bool notNull = (bool)autoGet.ConstructorArguments[1].Value;
-                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{path}\");\n");
+                    source.Append($"        {item.Name} = {(notNull ? "GetNode" : "GetNodeOrNull")}<{item.Type.FullQualifiedNameIncludeGlobal()}>(\"{nodePath}\");\n");
                 }
 
                 source.Append("    }\n\n");
