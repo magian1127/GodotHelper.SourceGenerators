@@ -121,6 +121,9 @@
   <data name="AutoGet" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Attributes\AutoGet.cs;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>
+  <data name="AutoLoadGet" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>..\Attributes\AutoLoadGet.cs;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
+  </data>
   <data name="Notify" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>..\Attributes\Notify.cs;System.String, mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089;utf-8</value>
   </data>

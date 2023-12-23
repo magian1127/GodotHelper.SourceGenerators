@@ -88,6 +88,26 @@ namespace GodotHelper.SourceGenerators.Properties {
         ///
         ///namespace GodotHelper.SourceGenerators.Attributes
         ///{
+        ///    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+        ///    [System.Diagnostics.Conditional(&quot;HelperGenerator_DEBUG&quot;)]
+        ///    public class AutoLoadGetAttribute : Attribute
+        ///    {
+        ///
+        ///    }
+        ///}
+        /// 的本地化字符串。
+        /// </summary>
+        internal static string AutoLoadGet {
+            get {
+                return ResourceManager.GetString("AutoLoadGet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   查找类似 using System;
+        ///
+        ///namespace GodotHelper.SourceGenerators.Attributes
+        ///{
         ///    [AttributeUsage(AttributeTargets.Field, Inherited = false, AllowMultiple = false)]
         ///    [System.Diagnostics.Conditional(&quot;HelperGenerator_DEBUG&quot;)]
         ///    public class NotifyAttribute : Attribute

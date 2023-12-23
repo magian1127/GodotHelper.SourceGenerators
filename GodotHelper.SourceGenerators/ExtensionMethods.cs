@@ -102,6 +102,20 @@ namespace GodotHelper.SourceGenerators
             };
         }
 
+        /// <summary>
+        /// 获取类的命名空间
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <returns></returns>
+        public static string GetClassNamespace(this INamedTypeSymbol symbol)
+        {
+            INamespaceSymbol namespaceSymbol = symbol.ContainingNamespace;
+            string classNs = namespaceSymbol != null && !namespaceSymbol.IsGlobalNamespace ?
+                namespaceSymbol.FullQualifiedNameOmitGlobal() :
+                string.Empty;
+            return classNs;
+        }
+
         public static bool IsNested(this TypeDeclarationSyntax cds)
             => cds.Parent is TypeDeclarationSyntax;
 

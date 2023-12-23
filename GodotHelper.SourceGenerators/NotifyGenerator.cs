@@ -44,18 +44,16 @@ namespace GodotHelper.SourceGenerators
                 return;
             }
 
-            string namespaceName = classSymbol.ContainingNamespace.ToDisplayString();
+            string classNs = classSymbol.GetClassNamespace();
             string uniqueHint = classSymbol.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()
-                               + "_GodotHelperNotify.g";
+                               + "_GodotHelper_Notify.g";
 
             StringBuilder source = new($@"using Godot;
 using System;
 using System.Collections.Generic;
-
-namespace {namespaceName}
+{(classNs.Length > 0 ? $"\nnamespace {classNs}\n" : "")}
+public partial class {classSymbol.Name}
 {{
-    public partial class {classSymbol.Name}
-    {{
 ");
 
             foreach (IFieldSymbol fieldSymbol in fields)
@@ -63,7 +61,7 @@ namespace {namespaceName}
                 ProcessField(source, fieldSymbol, attributeSymbol);
             }
 
-            source.Append("} }");
+            source.Append("}");
             context.AddSource(uniqueHint, SourceText.From(source.ToString(), Encoding.UTF8));
         }
 

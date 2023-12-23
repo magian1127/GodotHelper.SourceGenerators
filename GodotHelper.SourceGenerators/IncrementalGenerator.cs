@@ -1,0 +1,193 @@
+﻿using GodotHelper.SourceGenerators.Properties;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.Text;
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Text;
+using System.Threading;
+
+namespace GodotHelper.SourceGenerators
+{
+    [Generator]
+    public class IncrementalGenerator : IIncrementalGenerator
+    {
+        bool processProjectGodotEnd = false;
+
+        private enum ProjectTag
+        {
+            AutoLoad, Input, Other
+        }
+
+        public void Initialize(IncrementalGeneratorInitializationContext context)
+        {
+            context.RegisterPostInitializationOutput((i) => i.AddSource("HelperGenerator_AutoLoadGetAttribute.g", Resources.AutoLoadGet));
+
+            // 获取目标项目 csproj 配置中 AdditionalFiles 里指定的文件
+            var files = context.AdditionalTextsProvider.Where(static file => Path.GetFileName(file.Path).Equals("project.godot"));
+
+            IncrementalValuesProvider<List<(ProjectTag tag, string name, string path)>> filesContents = files.Select((additionalText, cancellationToken) =>
+            {// 这里 Select 会处理上面(files)获取的每个文件, 但是目前只有一个 project.godot, 所以下面的方法都只是针对 project.godot 的.
+                SourceText fileText = additionalText.GetText(cancellationToken);
+                ProjectTag tag = ProjectTag.Other;
+                int processNum = 0;//处理的标签数
+
+                List<(ProjectTag tag, string name, string path)> list = new();
+                foreach (TextLine line in fileText.Lines)
+                {
+                    string lineText = line.ToString();
+                    if (string.IsNullOrWhiteSpace(lineText)) continue;
+
+                    if (lineText.StartsWith("["))
+                    {
+                        switch (lineText)
+                        {
+                            case "[autoload]":
+                                tag = ProjectTag.AutoLoad;
+                                processNum++;
+                                break;
+                            case "[input]":
+                                tag = ProjectTag.Input;
+                                processNum++;
+                                break;
+                            default:
+                                tag = ProjectTag.Other;
+                                break;
+                        }
+                        if (processNum > 1)
+                        {
+                            break;
+                        }
+                        continue;//标签直接处理下一行
+                    }
+
+                    switch (tag)
+                    {
+                        case ProjectTag.AutoLoad:
+                            var autoload = lineText.Split('=');
+                            if (autoload.Length == 2)
+                            {
+                                list.Add((tag, autoload[0].Trim(), autoload[1].Trim('"')));
+                            }
+                            break;
+                        case ProjectTag.Input:
+                            var input = lineText.Split('=');
+                            if (input.Length > 1)
+                            {
+                                list.Add((tag, input[0].Trim(), ""));
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                return list;
+            });
+
+            // 获取所有标记过 AutoLoad 的类名称, Collect() 是将所有的值收集到一个集合中, 也就是把 IncrementalValuesProvider<T> 变为 IncrementalValueProvider<ImmutableArray<T>>, 方便后面 Combine() 使用;
+            var autoloadClass = context.SyntaxProvider.ForAttributeWithMetadataName(ClassFullName.AutoLoadAttr, (SyntaxNode n, CancellationToken c) => true, (GeneratorAttributeSyntaxContext context,
+      CancellationToken cancellationToken) => (INamedTypeSymbol)context.TargetSymbol).Collect();
+
+            // 组合上面的处理结果,方面后面 RegisterSourceOutput() 使用, 因为它只能接收一个源(IncrementalValueProvider<T>类型).
+            var godotValues = filesContents.Combine(autoloadClass);
+
+            // 注册生成代码的方法, 第一个参数是传入上面增量值(godotValues), 第二个参数是一个自定义处理方法, 约等于 增量值 的 foreach.
+            context.RegisterSourceOutput(godotValues, (sourceProductionContext, godotValue) =>
+            {
+                if (godotValue.Left == null || godotValue.Right == null)
+                {
+                    return;
+                }
+
+                Dictionary<string, INamedTypeSymbol> autoloads = new();
+                List<string> autoloadOthers = new();
+                List<string> inputs = new();
+
+                godotValue.Left.ForEach(x =>
+                {
+                    switch (x.tag)
+                    {
+                        case ProjectTag.AutoLoad:
+                            var symbol = godotValue.Right.SingleOrDefault(s => s.Name == x.name);
+                            if (symbol != null)
+                            {
+                                autoloads.Add(x.name, symbol);
+                            }
+                            else
+                            {
+                                autoloadOthers.Add(x.name);
+                            };
+                            break;
+                        case ProjectTag.Input:
+                            inputs.Add(x.name);
+                            break;
+                        default:
+                            break;
+                    }
+                });
+
+                GeneratorAutoLoad(sourceProductionContext, autoloads, autoloadOthers);
+
+            });
+
+        }
+
+        private static void GeneratorAutoLoad(SourceProductionContext sourceProductionContext, Dictionary<string, INamedTypeSymbol> autoloads, List<string> autoloadOthers)
+        {
+            if (autoloads.Count() > 0)
+            {
+                StringBuilder source = new();
+
+                source.Append($@"using Godot;
+using System;
+
+    public class AutoLoad
+    {{
+");
+                StringBuilder othersString = new();
+                foreach (var item in autoloadOthers)
+                {
+                    source.Append($"        public static Node {item} {{ get; set; }} = null!;\n");
+                    othersString.Append($"        AutoLoad.{item} = GetNode(\"/root/{item}\");\n");
+                }
+
+                bool getOthers = true;
+                foreach (var item in autoloads)
+                {
+                    string classNs = item.Value.GetClassNamespace();
+                    sourceProductionContext.AddSource($"{item.Value.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()}_GodotHelper_AutoLoad.g.cs", $@"using Godot;
+using System;
+{(classNs.Length > 0 ? $"\nnamespace {classNs}\n" : "")}
+public partial class {item.Value.Name}
+{{
+    partial void OnInit();
+    public {item.Value.Name}()
+    {{
+        Ready += ReadyCallback;
+        OnInit();
+    }}
+
+#pragma warning disable CS0109
+    partial void OnReady();
+    public new void ReadyCallback()
+    {{
+        AutoLoad.{item.Key} = this;
+{(getOthers ? othersString : "")}
+        OnReady();
+    }}
+#pragma warning restore CS0109
+}}");
+                    getOthers = false;
+                    source.Append($"        public static {item.Value.FullQualifiedNameIncludeGlobal()} {item.Key} {{ get; set; }} = null!;\n");
+                }
+                source.Append($@"
+    }}
+");
+                sourceProductionContext.AddSource("HelperGenerator_AutoLoad.g.cs", source.ToString());
+            }
+        }
+
+    }
+}

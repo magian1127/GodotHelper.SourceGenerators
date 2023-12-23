@@ -79,10 +79,7 @@ namespace GodotHelper.SourceGenerators
 
             if (!needGenerate) return;
 
-            INamespaceSymbol namespaceSymbol = symbol.ContainingNamespace;
-            string classNs = namespaceSymbol != null && !namespaceSymbol.IsGlobalNamespace ?
-                namespaceSymbol.FullQualifiedNameOmitGlobal() :
-                string.Empty;
+            string classNs = symbol.GetClassNamespace();
             bool hasNamespace = classNs.Length != 0;
 
             bool isInnerClass = symbol.ContainingType != null;//是否是类中的类(内部类)
