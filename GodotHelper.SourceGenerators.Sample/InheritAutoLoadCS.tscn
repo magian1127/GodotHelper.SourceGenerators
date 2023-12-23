@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://c44ugmy20i3xc"]
+
+[ext_resource type="Script" path="res://InheritAutoLoadCS.cs" id="1_nrjaf"]
+
+[node name="InheritAutoLoadCs" type="Node2D"]
+script = ExtResource("1_nrjaf")

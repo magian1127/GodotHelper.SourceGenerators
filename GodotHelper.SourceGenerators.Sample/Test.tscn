@@ -1,0 +1,21 @@
+[gd_scene load_steps=2 format=3 uid="uid://cq6khaynl0sa2"]
+
+[ext_resource type="Script" path="res://Test.cs" id="1_exvgy"]
+
+[node name="Test" type="Node2D"]
+script = ExtResource("1_exvgy")
+
+[node name="ButtonHpAdd" type="Button" parent="."]
+unique_name_in_owner = true
+offset_right = 8.0
+offset_bottom = 8.0
+text = "HP ++"
+
+[node name="ButtonHp0" type="Button" parent="."]
+offset_left = 64.0
+offset_right = 141.0
+offset_bottom = 31.0
+text = "HP Set 0"
+
+[connection signal="pressed" from="ButtonHpAdd" to="." method="OnButtonPressed"]
+[connection signal="pressed" from="ButtonHp0" to="." method="OnButtonHp0Pressed"]

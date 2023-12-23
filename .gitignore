@@ -363,3 +363,7 @@ MigrationBackup/
 FodyWeavers.xsd
 
 launchSettings.json
+
+# Godot
+.godot
+*.import
