@@ -14,8 +14,6 @@ namespace GodotHelper.SourceGenerators
     [Generator]
     public class IncrementalGenerator : IIncrementalGenerator
     {
-        bool processProjectGodotEnd = false;
-
         private enum ProjectTag
         {
             AutoLoad, Input, Other
@@ -54,9 +52,13 @@ namespace GodotHelper.SourceGenerators
                                 break;
                             default:
                                 tag = ProjectTag.Other;
+                                if (processNum > 1)
+                                {//假设找到 autoload 的时候是 1, 再找到 input 的时候是 2 , 此时如果再找到新的标签, 那 2 就应该退出 foreach 了. 但是这里 break 退出的是 switch, 所以放到外面再退出.
+                                    processNum++;
+                                }
                                 break;
                         }
-                        if (processNum > 1)
+                        if (processNum > 2)
                         {
                             break;
                         }
@@ -96,7 +98,7 @@ namespace GodotHelper.SourceGenerators
             // 注册生成代码的方法, 第一个参数是传入上面增量值(godotValues), 第二个参数是一个自定义处理方法, 约等于 增量值 的 foreach.
             context.RegisterSourceOutput(godotValues, (sourceProductionContext, godotValue) =>
             {
-                if (godotValue.Left == null || godotValue.Right == null)
+                if (godotValue.Left == null)
                 {
                     return;
                 }
@@ -129,6 +131,8 @@ namespace GodotHelper.SourceGenerators
                 });
 
                 GeneratorAutoLoad(sourceProductionContext, autoloads, autoloadOthers);
+
+                GeneratorInput(sourceProductionContext, inputs);
 
             });
 
@@ -186,6 +190,30 @@ public partial class {item.Value.Name}
     }}
 ");
                 sourceProductionContext.AddSource("HelperGenerator_AutoLoad.g.cs", source.ToString());
+            }
+        }
+
+        private static void GeneratorInput(SourceProductionContext sourceProductionContext, List<string> inputs)
+        {
+            if (inputs.Count() > 0)
+            {
+                StringBuilder source = new();
+
+                source.Append($@"using Godot;
+using System;
+
+    public class InputActionName
+    {{
+");
+
+                foreach (var item in inputs)
+                {
+                    source.Append($"        public static readonly StringName {item} = \"{item}\";\n");
+                }
+                source.Append($@"
+    }}
+");
+                sourceProductionContext.AddSource("HelperGenerator_InputActionName.g.cs", source.ToString());
             }
         }
 
