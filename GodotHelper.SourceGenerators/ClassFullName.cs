@@ -18,7 +18,7 @@ namespace GodotHelper.SourceGenerators
         public const string AutoGetAttr = "GodotHelper.SourceGenerators.Attributes.AutoGetAttribute";
         public const string NotifyAttr = "GodotHelper.SourceGenerators.Attributes.NotifyAttribute";
 
-        public const string AutoLoadAttr = "GodotHelper.SourceGenerators.Attributes.AutoLoadGetAttribute";
+        public const string AutoLoadGetAttr = "GodotHelper.SourceGenerators.Attributes.AutoLoadGetAttribute";
         public const string InputActionAttr = "GodotHelper.SourceGenerators.Attributes.InputActionAttribute";
     }
 }

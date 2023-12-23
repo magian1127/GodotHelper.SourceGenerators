@@ -243,6 +243,14 @@ namespace GodotHelper.SourceGenerators
             => symbol.FullQualifiedNameOmitGlobal() == ClassFullName.AutoGetAttr;
 
         /// <summary>
+        /// 是否包含 AutoLoadGet 特性
+        /// </summary>
+        /// <param name="symbol"></param>
+        /// <returns></returns>
+        public static bool IsAutoLoadGetAttribute(this INamedTypeSymbol symbol)
+            => symbol.FullQualifiedNameOmitGlobal() == ClassFullName.AutoLoadGetAttr;
+
+        /// <summary>
         /// 蛇形命名(SnakeCase)转为帕斯卡命名(PascalCase) (godot_name = GodotName)
         /// </summary>
         /// <param name="s"></param>

@@ -89,7 +89,7 @@ namespace GodotHelper.SourceGenerators
             });
 
             // 获取所有标记过 AutoLoad 的类名称, Collect() 是将所有的值收集到一个集合中, 也就是把 IncrementalValuesProvider<T> 变为 IncrementalValueProvider<ImmutableArray<T>>, 方便后面 Combine() 使用;
-            var autoloadClass = context.SyntaxProvider.ForAttributeWithMetadataName(ClassFullName.AutoLoadAttr, (SyntaxNode n, CancellationToken c) => true, (GeneratorAttributeSyntaxContext context,
+            var autoloadClass = context.SyntaxProvider.ForAttributeWithMetadataName(ClassFullName.AutoLoadGetAttr, (SyntaxNode n, CancellationToken c) => true, (GeneratorAttributeSyntaxContext context,
       CancellationToken cancellationToken) => (INamedTypeSymbol)context.TargetSymbol).Collect();
 
             // 组合上面的处理结果,方面后面 RegisterSourceOutput() 使用, 因为它只能接收一个源(IncrementalValueProvider<T>类型).
@@ -147,19 +147,20 @@ namespace GodotHelper.SourceGenerators
                 source.Append($@"using Godot;
 using System;
 
-    public class AutoLoad
+    public partial class AutoLoad
     {{
 ");
                 StringBuilder othersString = new();
                 foreach (var item in autoloadOthers)
                 {
                     source.Append($"        public static Node {item} {{ get; set; }} = null!;\n");
-                    othersString.Append($"        AutoLoad.{item} = GetNode(\"/root/{item}\");\n");
+                    othersString.Append($"        AutoLoad.{item} ??= GetNode(\"/root/{item}\");\n");
                 }
 
                 bool getOthers = true;
                 foreach (var item in autoloads)
                 {
+                    bool baseIsAutoload = item.Value.BaseType.GetAttributes().Any(a => a.AttributeClass.IsAutoLoadGetAttribute());
                     string classNs = item.Value.GetClassNamespace();
                     sourceProductionContext.AddSource($"{item.Value.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()}_GodotHelper_AutoLoad.g.cs", $@"using Godot;
 using System;
@@ -168,12 +169,13 @@ public partial class {item.Value.Name}
 {{
     partial void OnInit();
     public {item.Value.Name}()
-    {{
+    {{{(baseIsAutoload ? "\n        Ready -= base.ReadyCallback;" : "")}
         Ready += ReadyCallback;
         OnInit();
     }}
 
 #pragma warning disable CS0109
+    public new static {item.Value.Name} Singleton;
     partial void OnReady();
     public new void ReadyCallback()
     {{
@@ -202,7 +204,7 @@ public partial class {item.Value.Name}
                 source.Append($@"using Godot;
 using System;
 
-    public class InputActionName
+    public partial class InputActionName
     {{
 ");
 
