@@ -51,7 +51,7 @@ namespace GodotHelper.SourceGenerators
             StringBuilder source = new($@"using Godot;
 using System;
 using System.Collections.Generic;
-{(classNs.Length > 0 ? $"\nnamespace {classNs}\n" : "")}
+{(classNs.Length > 0 ? $"\nnamespace {classNs};\n" : "")}
 public partial class {classSymbol.Name}
 {{
 ");

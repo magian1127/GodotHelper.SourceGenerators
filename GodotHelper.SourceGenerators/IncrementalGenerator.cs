@@ -164,7 +164,7 @@ using System;
                     string classNs = item.Value.GetClassNamespace();
                     sourceProductionContext.AddSource($"{item.Value.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()}_GodotHelper_AutoLoad.g.cs", $@"using Godot;
 using System;
-{(classNs.Length > 0 ? $"\nnamespace {classNs}\n" : "")}
+{(classNs.Length > 0 ? $"\nnamespace {classNs};\n" : "")}
 public partial class {item.Value.Name}
 {{
     partial void OnInit();
