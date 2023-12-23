@@ -12,8 +12,23 @@ Auxiliary source generator for the Godot project, with some methods extracted fr
   </ItemGroup>
 ...
 ```
+Some features also require / 部分功能还需要:
+```xml
+...
+    <ItemGroup>
+        <AdditionalFiles Include="project.godot" />
+    </ItemGroup>
+...
+```
 
 ## Usage / 用法
+
+- [AutoGet](#autoget)
+- [RpcMethod](#rpcmethod)
+- [EmitSignal](#emitsignal)
+- [Notify](#notify)
+- [AutoLoadGet](#autoloadget)
+- [InputActionName](#inputactionname)
 
 ### `[AutoGet]`
 
@@ -24,6 +39,7 @@ using GodotHelper.SourceGenerators.Attributes;
 public partial class MyNode : Node2D
 {
     [AutoGet] Button button;
+    [AutoGet(nameof(NodeA))] Node NodeA;
     [AutoGet(notNull: false)] Node2D Node2D { get; set; }
     [AutoGet("Node/Label")] Label label;
 }
@@ -35,8 +51,8 @@ Generated Code / 生成的代码:
     public void GetNodes()
     {
         button = GetNode<global::Godot.Button>("%button");
-
-        Node2D = GetNodeOrNull<global::Godot.Node2D>("Node2D");
+        NodeA = GetNode<global::Godot.Node>("NodeA");
+        Node2D = GetNodeOrNull<global::Godot.Node2D>("%Node2D");
         label = GetNode<global::Godot.Label>("Node/Label");
     }
 ```
@@ -163,4 +179,116 @@ public partial class MyNode : Node2D
         // you code
     }
 }
+```
+
+### `[AutoLoadGet]`
+
+Require Set AdditionalFiles.
+And Godot Set AutoLoad.
+
+First Code / 首先手写:
+
+```cs
+using GodotHelper.SourceGenerators.Attributes;
+[AutoLoadGet]
+public partial class MyAutoLoad : Node2D
+{
+    ...
+}
+```
+
+Generated Code / 生成的代码:
+
+```cs
+public partial class MyAutoLoad
+{
+    partial void OnInit();
+    public MyAutoLoad()
+    {
+        Ready += ReadyCallback;
+        OnInit();
+    }
+
+#pragma warning disable CS0109
+    public new static MyAutoLoad Singleton;
+    partial void OnReady();
+    public new void ReadyCallback()
+    {
+        AutoLoad.MyAutoLoad = this;
+        AutoLoad.MyAutoLoad2 ??= GetNode("/root/MyAutoLoad2");// is not c#
+
+        OnReady();
+    }
+#pragma warning restore CS0109
+}
+```
+
+```cs
+    public partial class AutoLoad
+    {
+        public static Node MyAutoLoad2 { get; set; } = null!;
+        public static global::MyAutoLoad MyAutoLoad { get; set; } = null!;
+    }
+}
+```
+
+Use / 使用:
+```cs
+    public override void _Ready()
+    {
+        AutoLoad.MyAutoLoad.XXX = XX;
+        ...
+    }
+```
+
+```cs
+using GodotHelper.SourceGenerators.Attributes;
+[AutoLoadGet]
+public partial class MyAutoLoad : Node2D
+{
+    ...
+    partial void OnInit()
+    {
+        // you code
+    }
+
+    partial void OnReady()
+    {
+        // you code
+    }
+    ...
+}
+```
+
+### `[InputActionName]`
+
+Require Set AdditionalFiles.
+And Godot Set Input.
+
+First Code / 首先手写:
+
+```cs
+need not
+```
+
+Generated Code / 生成的代码:
+
+```cs
+    public partial class InputActionName
+    {
+        public static readonly StringName MoveUp = "MoveUp";
+        public static readonly StringName MoveDown = "MoveDown";
+
+    }
+```
+
+Use / 使用:
+```cs
+    public override void _Input(InputEvent @event)
+    {
+        if (@event.IsActionPressed(InputActionName.MoveUp))
+        {
+            ...
+        }
+    }
 ```
