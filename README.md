@@ -25,6 +25,7 @@ public partial class MyNode : Node2D
 {
     [AutoGet] Button button;
     [AutoGet(notNull: false)] Node2D Node2D { get; set; }
+    [AutoGet("Node/Label")] Label label;
 }
 ```
 
@@ -33,9 +34,10 @@ Generated Code / 生成的代码:
 ```cs
     public void GetNodes()
     {
-        button = GetNode<global::Godot.Button>("button");
+        button = GetNode<global::Godot.Button>("%button");
 
         Node2D = GetNodeOrNull<global::Godot.Node2D>("Node2D");
+        label = GetNode<global::Godot.Label>("Node/Label");
     }
 ```
 
