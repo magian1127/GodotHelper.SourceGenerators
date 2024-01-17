@@ -92,7 +92,7 @@ namespace GodotHelper.SourceGenerators
             var autoloadClass = context.SyntaxProvider.ForAttributeWithMetadataName(ClassFullName.AutoLoadGetAttr, (SyntaxNode n, CancellationToken c) => true, (GeneratorAttributeSyntaxContext context,
       CancellationToken cancellationToken) => (INamedTypeSymbol)context.TargetSymbol).Collect();
 
-            // 组合上面的处理结果,方面后面 RegisterSourceOutput() 使用, 因为它只能接收一个源(IncrementalValueProvider<T>类型).
+            // 组合上面的处理结果,方便后面 RegisterSourceOutput() 使用, 因为它只能接收一个源(IncrementalValueProvider<T>类型).
             var godotValues = filesContents.Combine(autoloadClass);
 
             // 注册生成代码的方法, 第一个参数是传入上面增量值(godotValues), 第二个参数是一个自定义处理方法, 约等于 增量值 的 foreach.
@@ -175,7 +175,6 @@ public partial class {item.Value.Name}
     }}
 
 #pragma warning disable CS0109
-    public new static {item.Value.Name} Singleton;
     partial void OnReady();
     public new void ReadyCallback()
     {{

@@ -362,7 +362,9 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 
+# vs
 launchSettings.json
+*.csproj.old
 
 # Godot
 .godot

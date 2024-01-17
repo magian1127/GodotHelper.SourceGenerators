@@ -210,7 +210,6 @@ public partial class MyAutoLoad
     }
 
 #pragma warning disable CS0109
-    public new static MyAutoLoad Singleton;
     partial void OnReady();
     public new void ReadyCallback()
     {
