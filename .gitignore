@@ -365,6 +365,7 @@ FodyWeavers.xsd
 # vs
 launchSettings.json
 *.csproj.old
+*.csproj.old.*
 
 # Godot
 .godot

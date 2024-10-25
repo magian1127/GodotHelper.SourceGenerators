@@ -43,7 +43,7 @@ public partial class Test : Node2D
         Death += OnDeath;
     }
 
-    partial void OnHpChanging(int oldValue, int newValue)
+    partial void OnHpChanging(int oldValue,ref int newValue)
     {
         GD.Print($"{nameof(OnHpChanging)}: {oldValue} -> {newValue}");
     }

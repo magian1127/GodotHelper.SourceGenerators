@@ -1,4 +1,5 @@
-﻿using GodotHelper.SourceGenerators.Properties;
+﻿using GodotHelper.SourceGenerators.Data;
+using GodotHelper.SourceGenerators.Properties;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
@@ -24,9 +25,9 @@ namespace GodotHelper.SourceGenerators
             context.RegisterPostInitializationOutput((i) => i.AddSource("HelperGenerator_AutoLoadGetAttribute.g", Resources.AutoLoadGet));
 
             // 获取目标项目 csproj 配置中 AdditionalFiles 里指定的文件
-            var files = context.AdditionalTextsProvider.Where(static file => Path.GetFileName(file.Path).Equals("project.godot"));
+            var godotFiles = context.AdditionalTextsProvider.Where(static file => Path.GetFileName(file.Path).Equals("project.godot"));
 
-            IncrementalValuesProvider<List<(ProjectTag tag, string name, string path)>> filesContents = files.Select((additionalText, cancellationToken) =>
+            IncrementalValuesProvider<List<(ProjectTag tag, string name, string path)>> godotContents = godotFiles.Select((additionalText, cancellationToken) =>
             {// 这里 Select 会处理上面(files)获取的每个文件, 但是目前只有一个 project.godot, 所以下面的方法都只是针对 project.godot 的.
                 SourceText fileText = additionalText.GetText(cancellationToken);
                 ProjectTag tag = ProjectTag.Other;
@@ -89,11 +90,15 @@ namespace GodotHelper.SourceGenerators
             });
 
             // 获取所有标记过 AutoLoad 的类名称, Collect() 是将所有的值收集到一个集合中, 也就是把 IncrementalValuesProvider<T> 变为 IncrementalValueProvider<ImmutableArray<T>>, 方便后面 Combine() 使用;
-            var autoloadClass = context.SyntaxProvider.ForAttributeWithMetadataName(ClassFullName.AutoLoadGetAttr, (SyntaxNode n, CancellationToken c) => true, (GeneratorAttributeSyntaxContext context,
-      CancellationToken cancellationToken) => (INamedTypeSymbol)context.TargetSymbol).Collect();
+            var autoloadClass = context.SyntaxProvider
+                .ForAttributeWithMetadataName(
+                    ClassFullName.AutoLoadGetAttr,
+                    static (SyntaxNode sn, CancellationToken _) => true,
+                    static (GeneratorAttributeSyntaxContext gasc, CancellationToken _) => GetAutoLoadData(gasc.SemanticModel, gasc.TargetNode))
+                .Where(static d => d is not null).Collect();
 
             // 组合上面的处理结果,方便后面 RegisterSourceOutput() 使用, 因为它只能接收一个源(IncrementalValueProvider<T>类型).
-            var godotValues = filesContents.Combine(autoloadClass);
+            var godotValues = godotContents.Combine(autoloadClass);
 
             // 注册生成代码的方法, 第一个参数是传入上面增量值(godotValues), 第二个参数是一个自定义处理方法, 约等于 增量值 的 foreach.
             context.RegisterSourceOutput(godotValues, (sourceProductionContext, godotValue) =>
@@ -103,7 +108,7 @@ namespace GodotHelper.SourceGenerators
                     return;
                 }
 
-                Dictionary<string, INamedTypeSymbol> autoloads = new();
+                Dictionary<string, AutoLoadData> autoloads = new();
                 List<string> autoloadOthers = new();
                 List<string> inputs = new();
 
@@ -112,10 +117,10 @@ namespace GodotHelper.SourceGenerators
                     switch (x.tag)
                     {
                         case ProjectTag.AutoLoad:
-                            var symbol = godotValue.Right.SingleOrDefault(s => s.Name == x.name);
-                            if (symbol != null)
+                            var autoLoadData = godotValue.Right.SingleOrDefault(s => s.Value.Name == x.name);
+                            if (autoLoadData != null)
                             {
-                                autoloads.Add(x.name, symbol);
+                                autoloads.Add(x.name, autoLoadData.Value);
                             }
                             else
                             {
@@ -138,7 +143,7 @@ namespace GodotHelper.SourceGenerators
 
         }
 
-        private static void GeneratorAutoLoad(SourceProductionContext sourceProductionContext, Dictionary<string, INamedTypeSymbol> autoloads, List<string> autoloadOthers)
+        private static void GeneratorAutoLoad(SourceProductionContext sourceProductionContext, Dictionary<string, AutoLoadData> autoloads, List<string> autoloadOthers)
         {
             if (autoloads.Count() > 0)
             {
@@ -160,16 +165,14 @@ using System;
                 bool getOthers = true;
                 foreach (var item in autoloads)
                 {
-                    bool baseIsAutoload = item.Value.BaseType.GetAttributes().Any(a => a.AttributeClass.IsAutoLoadGetAttribute());
-                    string classNs = item.Value.GetClassNamespace();
-                    sourceProductionContext.AddSource($"{item.Value.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()}_GodotHelper_AutoLoad.g.cs", $@"using Godot;
+                    sourceProductionContext.AddSource(item.Value.HintName, $@"using Godot;
 using System;
-{(classNs.Length > 0 ? $"\nnamespace {classNs};\n" : "")}
+{(item.Value.ClassNamespace.Length > 0 ? $"\nnamespace {item.Value.ClassNamespace};\n" : "")}
 public partial class {item.Value.Name}
 {{
     partial void OnInit();
     public {item.Value.Name}()
-    {{{(baseIsAutoload ? "\n        Ready -= base.ReadyCallback;" : "")}
+    {{{(item.Value.BaseIsAutoload ? "\n        Ready -= base.ReadyCallback;" : "")}
         Ready += ReadyCallback;
         OnInit();
     }}
@@ -185,7 +188,7 @@ public partial class {item.Value.Name}
 #pragma warning restore CS0109
 }}");
                     getOthers = false;
-                    source.Append($"        public static {item.Value.FullQualifiedNameIncludeGlobal()} {item.Key} {{ get; set; }} = null!;\n");
+                    source.Append($"        public static {item.Value.FullName} {item.Key} {{ get; set; }} = null!;\n");
                 }
                 source.Append($@"
     }}
@@ -216,6 +219,19 @@ using System;
 ");
                 sourceProductionContext.AddSource("HelperGenerator_InputActionName.g.cs", source.ToString());
             }
+        }
+
+        private static AutoLoadData? GetAutoLoadData(SemanticModel semanticModel, SyntaxNode declarationSyntax)
+        {
+            if (semanticModel.GetDeclaredSymbol(declarationSyntax) is not INamedTypeSymbol symbol) return null;
+
+            bool baseIsAutoload = symbol.BaseType.GetAttributes().Any(a => a.AttributeClass.IsAutoLoadGetAttribute());
+            string classNamespace = symbol.GetClassNamespace();
+            string hintName = $"{symbol.FullQualifiedNameOmitGlobal().SanitizeQualifiedNameForUniqueHint()}_GodotHelper_AutoLoad.g.cs";
+            string name = symbol.Name;
+            string fullName = symbol.FullQualifiedNameIncludeGlobal();
+
+            return new AutoLoadData(baseIsAutoload, classNamespace, hintName, name, fullName);
         }
 
     }
