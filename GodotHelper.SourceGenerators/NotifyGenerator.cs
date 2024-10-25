@@ -76,6 +76,7 @@ public partial class {classSymbol.Name}
             // 两个参数无法使用,因为源生成器暂时还不能嵌套生成
             bool useSignal = false;
             bool useExport = false;
+            bool isPartial = (bool)attributeData.ConstructorArguments[2].Value;
 
             string propertyName = fieldName.ToPascalCase();
             if (propertyName == fieldName)
@@ -93,11 +94,11 @@ public partial class {classSymbol.Name}
             }
 
             source.Append($@"
-    partial void On{propertyName}Changing({fieldType} oldValue, {fieldType} newValue);
+    partial void On{propertyName}Changing({fieldType} oldValue, ref {fieldType} newValue);
     partial void On{propertyName}Changed({fieldType} oldValue, {fieldType} newValue);
     
     /// <inheritdoc cref=""{fieldName}""/>
-    {(useExport ? "[Export] " : "")}public {fieldType} {propertyName} 
+    {(useExport ? "[Export] " : "")}public {(isPartial ? "partial " : "")}{fieldType} {propertyName} 
     {{
         get => {fieldName};
         set
@@ -105,7 +106,7 @@ public partial class {classSymbol.Name}
             if (!EqualityComparer<{fieldType}>.Default.Equals({fieldName}, value))
             {{
                 var oldValue = {fieldName};
-                On{propertyName}Changing(oldValue, value);
+                On{propertyName}Changing(oldValue, ref value);
                 {fieldName} = value;
                 On{propertyName}Changed(oldValue, value);
                 {(useSignal ? $"Emit{propertyName}Changed(oldValue, value);" : $"{propertyName}Changed?.Invoke(oldValue, value);")}
