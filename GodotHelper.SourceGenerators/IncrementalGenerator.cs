@@ -39,7 +39,6 @@ namespace GodotHelper.SourceGenerators
             public Dictionary<string, string> Propertys = new();
         }
 
-        static Dictionary<string, DateTime> TscnLastWriteTimes = new();
         static string GodotDir;
 
         public void Initialize(IncrementalGeneratorInitializationContext context)
@@ -166,17 +165,10 @@ namespace GodotHelper.SourceGenerators
 
 
             // 读取所有 tscn. 目前只处理 tscn 的信号引用 C# 方法的文件.
-            var tscnFiles = context.AdditionalTextsProvider.Where(static file =>
-            {
-                var fileInfo = new FileInfo(file.Path);
-                return fileInfo.Extension.Equals(".tscn") && (!TscnLastWriteTimes.ContainsKey(file.Path) || fileInfo.LastWriteTimeUtc > TscnLastWriteTimes[file.Path]);
-            });
+            var tscnFiles = context.AdditionalTextsProvider.Where(static file => Path.GetExtension(file.Path).Equals(".tscn"));
 
             var tscnContents = tscnFiles.Select(static (additionalText, cancellationToken) =>
             {
-                // 记录 tscn 文件最后修改时间, 方便上面对比.
-                TscnLastWriteTimes.Add(additionalText.Path, new FileInfo(additionalText.Path).LastWriteTimeUtc);
-
                 SourceText fileText = additionalText.GetText(cancellationToken);
 
                 Tscn tscn = new();
@@ -385,7 +377,7 @@ using System;
             }
         }
 
-        private static void GeneratorConnectionTscn(SourceProductionContext sourceProductionContext , ClassData classData, System.Collections.Immutable.ImmutableArray<Tscn> tscns)
+        private static void GeneratorConnectionTscn(SourceProductionContext sourceProductionContext, ClassData classData, System.Collections.Immutable.ImmutableArray<Tscn> tscns)
         {
             var resPath = "res://" + RelativeToDir(classData.Path, GodotDir);
             var connectionTscns = tscns.Where(t => t.Tags.Any(tag => tag.Type == TscnTag.connection && tag.Propertys["cs"] == resPath));
