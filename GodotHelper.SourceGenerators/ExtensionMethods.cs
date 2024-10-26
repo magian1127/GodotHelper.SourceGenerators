@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -264,6 +265,26 @@ namespace GodotHelper.SourceGenerators
             });
 
             return pascalCase;
+        }
+
+        /// <summary>
+        /// 生成执行方法的字符串. 例: Method(new int())
+        /// </summary>
+        /// <param name="method"></param>
+        /// <returns></returns>
+        public static string GenerateMethodCall(this IMethodSymbol method)
+        {
+            var sb = new StringBuilder();
+            sb.Append(method.Name);
+            sb.Append("(");
+
+            // 为每个参数生成 "new 类型名()"
+            var parameters = method.Parameters
+                .Select(p => $"new {p.Type}()");
+            sb.Append(string.Join(", ", parameters));
+
+            sb.Append(");");
+            return sb.ToString();
         }
     }
 }

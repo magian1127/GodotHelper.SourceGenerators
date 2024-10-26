@@ -86,4 +86,9 @@ public partial class Test : Node2D
            Hp--;
         }
     }
+
+    private void OnReplacingBy(Node node)
+    {
+        
+    }
 }

@@ -17,5 +17,6 @@ offset_right = 141.0
 offset_bottom = 31.0
 text = "HP Set 0"
 
+[connection signal="replacing_by" from="." to="." method="OnReplacingBy"]
 [connection signal="pressed" from="ButtonHpAdd" to="." method="OnButtonPressed"]
 [connection signal="pressed" from="ButtonHp0" to="." method="OnButtonHp0Pressed"]
